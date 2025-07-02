@@ -571,6 +571,107 @@ def peak_count_estimation(time_peaks_normal, time_peaks_tachy, signal, fs):
 
     return hr_count_normal, hr_count_tachy
 
+def peak_variation_estimation(time_peaks_normal, time_peaks_tachy):
+    """
+    ピーク間隔のばらつきを計算する関数
+    Parameters:
+    time_peaks_normal : list or np.ndarray
+        正常時のピーク時間配列
+    time_peaks_tachy : list or np.ndarray
+        頻脈時のピーク時間配列
+    
+    Returns:
+    dict
+        正常時と頻脈時の統計量を含む辞書
+    """
+    
+    def calculate_statistics(time_peaks):
+        """
+        ピーク間隔の統計量を計算する内部関数
+        """
+        if not time_peaks or len(time_peaks) < 2:
+            return {
+                'std': np.nan,
+                'variance': np.nan,
+                'mad': np.nan
+            }
+        try:
+            # 入力データを1次元配列に変換
+            if isinstance(time_peaks, list):
+                # ネストしたリストを平坦化
+                flat_peaks = []
+                for item in time_peaks:
+                    if isinstance(item, (list, np.ndarray)):
+                        flat_peaks.extend(item)
+                    else:
+                        flat_peaks.append(item)
+                time_peaks = np.array(flat_peaks)
+            else:
+                time_peaks = np.array(time_peaks).flatten()
+            
+            # オブジェクト配列の場合の特別処理
+            if time_peaks.dtype == np.dtype('O'):
+                # オブジェクト配列を数値配列に変換
+                numeric_peaks = []
+                for item in time_peaks:
+                    try:
+                        if isinstance(item, (int, float, np.number)):
+                            numeric_peaks.append(float(item))
+                        elif isinstance(item, str):
+                            numeric_peaks.append(float(item))
+                        elif hasattr(item, '__iter__'):
+                            # イテラブルなオブジェクトの場合
+                            for subitem in item:
+                                if isinstance(subitem, (int, float, np.number)):
+                                    numeric_peaks.append(float(subitem))
+                    except (ValueError, TypeError):
+                        continue
+                time_peaks = np.array(numeric_peaks)
+            
+            # 数値以外の要素を除去
+            time_peaks = time_peaks[np.isfinite(time_peaks)]
+            # 重複を削除（ユニーク値のみ抽出）
+            time_peaks = np.unique(time_peaks)
+            
+            if len(time_peaks) < 2:
+                return {
+                    'std': np.nan,
+                    'var': np.nan,
+                    'mad': np.nan
+                }
+            # ピーク間隔を計算
+            intervals = np.diff(time_peaks)
+            # 統計量を計算
+            std = np.std(intervals)  # 標準偏差
+            var = np.var(intervals)  # 分散
+            mad = np.mean(np.abs(intervals - np.mean(intervals)))  # 平均絶対偏差
+            
+            return {
+                'std': std,
+                'var': var,
+                'mad': mad
+            }
+            
+        except Exception as e:
+            print(f"Error in calculate_statistics: {e}")
+            return {
+                'std': np.nan,
+                'variance': np.nan,
+                'mad': np.nan
+            }
+    
+    # 正常時の統計量を計算
+    normal_stats = calculate_statistics(time_peaks_normal)
+    # 頻脈時の統計量を計算
+    tachy_stats = calculate_statistics(time_peaks_tachy)
+    
+    # 結果を辞書として返す
+    results = {
+        'normal': normal_stats,
+        'tachy': tachy_stats
+    }
+    return results
+
 # FFTピーク検出と特徴量抽出
 def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_thr=0.3, 
                          prominence_coeff=0.6, height_threshold=0.01, plot=False, 
