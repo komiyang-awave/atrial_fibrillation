@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import japanize_matplotlib
@@ -313,7 +314,7 @@ def sliding_window_peak_detection(signal, fs, window_size_sec=2, step_size_sec=1
                                 min_lag_bpm_normal=120, min_lag_bpm_tachy=220,
                                 prom_coeff_normal=2.5, prom_coeff_tachy=0.05,
                                 height_qxx=50, height_coeff_normal=1.5, height_coeff_tachy=0.5,
-                                plot=False):
+                                plot=False, save_path=None, save_format='jpeg', jpeg_quality=80, dpi=100):
     """
     スライディングウィンドウを使用してピーク検出を実行する関数
     
@@ -341,8 +342,16 @@ def sliding_window_peak_detection(signal, fs, window_size_sec=2, step_size_sec=1
         normal用のheight係数（デフォルト: 1.5）
     height_coeff_tachy : float
         tachy用のheight係数（デフォルト: 0.5）
-    plot_enable : bool
+    plot : bool
         プロット表示フラグ（デフォルト: False）
+    save_path : str, optional
+        グラフ保存パス（指定すると保存、Noneなら表示）（デフォルト: None）
+    save_format : str, optional
+        保存形式（'png', 'jpg', 'jpeg', 'pdf', 'svg'など）（デフォルト: 'jpeg'）
+    jpeg_quality : int, optional
+        JPEG保存時の品質（1-100、高いほど高品質）（デフォルト: 80）
+    dpi : int, optional
+        JPEG保存時のDPI（デフォルト: 100）
     
     Returns:
     --------
@@ -455,7 +464,18 @@ def sliding_window_peak_detection(signal, fs, window_size_sec=2, step_size_sec=1
 
     if plot:
         plt.tight_layout()
-        plt.show()
+        
+        # 表示/保存のスイッチ
+        if save_path:
+            # 保存形式に応じたパラメータ設定
+            if save_format.lower() in ['jpg', 'jpeg']:
+                plt.savefig(save_path, dpi=dpi, bbox_inches='tight', 
+                           format='jpeg', pil_kwargs={'quality': jpeg_quality})
+            else:
+                plt.savefig(save_path, dpi=dpi, bbox_inches='tight', format=save_format)
+            plt.close(fig)  # メモリ節約のため図を閉じる
+        else:
+            plt.show()
 
     # 結果を辞書として返す
     results = {
@@ -675,7 +695,8 @@ def peak_variation_estimation(time_peaks_normal, time_peaks_tachy):
 # FFTピーク検出と特徴量抽出
 def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_thr=0.3, 
                          prominence_coeff=0.6, height_threshold=0.01, plot=False, 
-                         file_name="", vol_mean=0, actual_hr=0):
+                         file_name="", note_x="", vol_mean=0, actual_hr=0, save_path=None, 
+                         save_format='jpeg', jpeg_quality=80, dpi=100):
     """
     FFTピーク検出と特徴量抽出を実行する関数
     
@@ -703,6 +724,14 @@ def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_t
         音量平均値（プロット表示時に使用）
     actual_hr : int
         実際の心拍数（プロット表示時に使用）
+    save_path : str, optional
+        グラフ保存パス（指定すると保存、Noneなら表示）（デフォルト: None）
+    save_format : str, optional
+        保存形式（'png', 'jpg', 'jpeg', 'pdf', 'svg'など）（デフォルト: 'jpeg'）
+    jpeg_quality : int, optional
+        JPEG保存時の品質（1-100、高いほど高品質）（デフォルト: 80）
+    dpi : int, optional
+        JPEG保存時のDPI（デフォルト: 100）
     
     Returns:
     --------
@@ -836,7 +865,7 @@ def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_t
         ax[0].set_xlim(0, 8)
         ax[0].grid(True)
         ax[0].legend(loc='upper right')
-        ax[0].set_title(f'{file_name}  音量: {vol_mean:.0f}  \n HR: {actual_hr}, first: {bpm_first_peak}, dominant: {bpm_dominant_peak}')
+        ax[0].set_title(f'{file_name}  音量: {vol_mean:.0f}\n note_x: {note_x} \n HR: {actual_hr}, first: {bpm_first_peak}, dominant: {bpm_dominant_peak}')
         
         # 下段：時系列データ
         time_fft = np.arange(0, len(signal))/fs
@@ -848,6 +877,20 @@ def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_t
         ax[1].legend(loc='upper right')
         
         plt.tight_layout()
-        plt.show()
+        
+        # 表示/保存のスイッチ
+        if save_path:
+            # 保存先フォルダの確認と作成
+            save_dir = os.path.dirname(save_path)
+            os.makedirs(save_dir, exist_ok=True)
+            # 保存形式に応じたパラメータ設定
+            if save_format.lower() in ['jpg', 'jpeg']:
+                plt.savefig(save_path, dpi=dpi, bbox_inches='tight', 
+                           format='jpeg', pil_kwargs={'quality': jpeg_quality})
+            else:
+                plt.savefig(save_path, dpi=dpi, bbox_inches='tight', format=save_format)
+            plt.close(fig)  # メモリ節約のため図を閉じる
+        else:
+            plt.show()
     
     return features

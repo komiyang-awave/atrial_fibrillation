@@ -47,6 +47,7 @@ __pycache__/
 # Large data directories
 data/
 wav/
+figures/
 
 # Logs
 *.log
