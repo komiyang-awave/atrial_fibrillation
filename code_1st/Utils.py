@@ -591,6 +591,7 @@ def peak_count_estimation(time_peaks_normal, time_peaks_tachy, signal, fs):
 
     return hr_count_normal, hr_count_tachy
 
+### ピーク間隔のばらつきを計算する関数
 def peak_variation_estimation(time_peaks_normal, time_peaks_tachy):
     """
     ピーク間隔のばらつきを計算する関数
@@ -651,7 +652,7 @@ def peak_variation_estimation(time_peaks_normal, time_peaks_tachy):
             # 数値以外の要素を除去
             time_peaks = time_peaks[np.isfinite(time_peaks)]
             # 重複を削除（ユニーク値のみ抽出）
-            time_peaks = np.unique(time_peaks)
+            time_peaks = np.unique(np.round(time_peaks, decimals=3))
             
             if len(time_peaks) < 2:
                 return {
@@ -660,39 +661,54 @@ def peak_variation_estimation(time_peaks_normal, time_peaks_tachy):
                     'mad': np.nan
                 }
             # ピーク間隔を計算
-            intervals = np.diff(time_peaks)
+            intervals = np.round(np.diff(time_peaks), decimals=3)
             # 統計量を計算
             std = np.std(intervals)  # 標準偏差
             var = np.var(intervals)  # 分散
             mad = np.mean(np.abs(intervals - np.mean(intervals)))  # 平均絶対偏差
+            rmssd = np.sqrt(np.mean(np.square(np.diff(time_peaks))))  # RMSSD
+            nn50 = sum(1 for i in range(len(intervals) - 1) if abs(intervals[i] - intervals[i+1]) > 0.05)  # NN50
+            nn20 = sum(1 for i in range(len(intervals) - 1) if abs(intervals[i] - intervals[i+1]) > 0.02)  # NN20
+            pnn50 = nn50 / len(intervals) * 100  # pNN50(%)
+            pnn20 = nn20 / len(intervals) * 100  # pNN20(%)
             
             return {
                 'std': std,
                 'var': var,
-                'mad': mad
-            }
+                'mad': mad,
+                'rmssd': rmssd,
+                'nn50': nn50,
+                'nn20': nn20,
+                'pnn50': pnn50,
+                'pnn20': pnn20
+            }, time_peaks, intervals
             
         except Exception as e:
             print(f"Error in calculate_statistics: {e}")
             return {
                 'std': np.nan,
-                'variance': np.nan,
-                'mad': np.nan
+                'var': np.nan,
+                'mad': np.nan,
+                'rmssd': np.nan,
+                'nn50': np.nan,
+                'nn20': np.nan,
+                'pnn50': np.nan,
+                'pnn20': np.nan
             }
     
     # 正常時の統計量を計算
-    normal_stats = calculate_statistics(time_peaks_normal)
+    normal_stats, time_peaks_normal, intervals_normal = calculate_statistics(time_peaks_normal)
     # 頻脈時の統計量を計算
-    tachy_stats = calculate_statistics(time_peaks_tachy)
+    tachy_stats, time_peaks_tachy, intervals_tachy = calculate_statistics(time_peaks_tachy)
     
     # 結果を辞書として返す
     results = {
         'normal': normal_stats,
         'tachy': tachy_stats
     }
-    return results
+    return results, time_peaks_normal, intervals_normal, time_peaks_tachy, intervals_tachy
 
-# FFTピーク検出と特徴量抽出
+### FFTピーク検出と特徴量抽出
 def detect_peaks_with_FFT(signal, fs, desired_sec=15, high_freq_thr=5.5, power_thr=0.3, 
                          prominence_coeff=0.6, height_threshold=0.01, plot=False, 
                          file_name="", note_x="", vol_mean=0, actual_hr=0, save_path=None, 
