@@ -15,6 +15,7 @@ desktop.ini
 *.swp
 *.swo
 *~
+*.code-workspace
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
